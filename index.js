@@ -1,7 +1,4 @@
-// Welcome to
-// ... (your banner)
-// This file can be a nice home for your Battlesnake logic and helper functions.
-// For more info see docs.battlesnake.com
+// Sample Battlesnake in JavaScript
 
 import runServer from './server.js';
 
@@ -25,107 +22,71 @@ function end(gameState) {
   console.log("GAME OVER\n");
 }
 
-function move(gameState) {
+// Move function - this is where the magic happens
+function move(body) {
+  // Extract data from the request
+  const board = body.board;
+  const you = body.you;
 
-  let isMoveSafe = {
-    up: true,
-    down: true,
-    left: true,
-    right: true
-  };
+  // Find your snake's head coordinates
+  const head = you.head;
 
-  const myHead = gameState.you.body[0];
-  const myNeck = gameState.you.body[1];
+  // Determine possible moves
+  const possibleMoves = ["up", "down", "left", "right"];
 
-  if (myNeck.x < myHead.x) {
-    isMoveSafe.left = false;
-
-  } else if (myNeck.x > myHead.x) {
-    isMoveSafe.right = false;
-
-  } else if (myNeck.y < myHead.y) {
-    isMoveSafe.down = false;
-
-  } else if (myNeck.y > myHead.y) {
-    isMoveSafe.up = false;
+  // TODO: Step 1 - Prevent your Battlesnake from moving out of bounds
+  if (head.x === 0) {
+    possibleMoves.splice(possibleMoves.indexOf("left"), 1);
+  }
+  if (head.y === 0) {
+    possibleMoves.splice(possibleMoves.indexOf("down"), 1);
+  }
+  if (head.x === board.width - 1) {
+    possibleMoves.splice(possibleMoves.indexOf("right"), 1);
+  }
+  if (head.y === board.height - 1) {
+    possibleMoves.splice(possibleMoves.indexOf("up"), 1);
   }
 
-  // Step 1 - Prevent your Battlesnake from moving out of bounds
-  const boardWidth = gameState.board.width;
-  const boardHeight = gameState.board.height;
-
-  if (myHead.x === 0) {
-    isMoveSafe.left = false;
-  }
-  if (myHead.y === 0) {
-    isMoveSafe.down = false;
-  }
-  if (myHead.x === boardWidth - 1) {
-    isMoveSafe.right = false;
-  }
-  if (myHead.y === boardHeight - 1) {
-    isMoveSafe.up = false;
-  }
-
-  // Step 2 - Prevent your Battlesnake from colliding with itself
-  const myBody = gameState.you.body;
+  // TODO: Step 2 - Prevent your Battlesnake from colliding with itself
+  const myBody = you.body;
   myBody.forEach((segment) => {
-    Object.keys(isMoveSafe).forEach((dir) => {
+    possibleMoves.forEach((dir, index) => {
       if (
-        (dir === "up" && myHead.y - 1 === segment.y && myHead.x === segment.x) ||
-        (dir === "down" && myHead.y + 1 === segment.y && myHead.x === segment.x) ||
-        (dir === "left" && myHead.x - 1 === segment.x && myHead.y === segment.y) ||
-        (dir === "right" && myHead.x + 1 === segment.x && myHead.y === segment.y)
+        (dir === "up" && head.y - 1 === segment.y && head.x === segment.x) ||
+        (dir === "down" && head.y + 1 === segment.y && head.x === segment.x) ||
+        (dir === "left" && head.x - 1 === segment.x && head.y === segment.y) ||
+        (dir === "right" && head.x + 1 === segment.x && head.y === segment.y)
       ) {
-        isMoveSafe[dir] = false;
+        possibleMoves.splice(index, 1);
       }
     });
   });
 
-  // Step 3 - Prevent your Battlesnake from colliding with other Battlesnakes
-  const opponents = gameState.board.snakes;
+  // TODO: Step 3 - Prevent your Battlesnake from colliding with other Battlesnakes
+  const opponents = board.snakes;
   opponents.forEach((snake) => {
     snake.body.forEach((segment) => {
-      Object.keys(isMoveSafe).forEach((dir) => {
+      possibleMoves.forEach((dir, index) => {
         if (
-          (dir === "up" && myHead.y - 1 === segment.y && myHead.x === segment.x) ||
-          (dir === "down" && myHead.y + 1 === segment.y && myHead.x === segment.x) ||
-          (dir === "left" && myHead.x - 1 === segment.x && myHead.y === segment.y) ||
-          (dir === "right" && myHead.x + 1 === segment.x && myHead.y === segment.y)
+          (dir === "up" && head.y - 1 === segment.y && head.x === segment.x) ||
+          (dir === "down" && head.y + 1 === segment.y && head.x === segment.x) ||
+          (dir === "left" && head.x - 1 === segment.x && head.y === segment.y) ||
+          (dir === "right" && head.x + 1 === segment.x && head.y === segment.y)
         ) {
-          isMoveSafe[dir] = false;
+          possibleMoves.splice(index, 1);
         }
       });
     });
   });
 
-  const safeMoves = Object.keys(isMoveSafe).filter((key) => isMoveSafe[key]);
-  if (safeMoves.length == 0) {
-    console.log(`MOVE ${gameState.turn}: No safe moves detected! Moving down`);
-    return { move: "down" };
-  }
+  // Choose a random valid move
+  const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
 
-  // Step 4 - Move towards food instead of random, to regain health and survive longer
-  const food = gameState.board.food;
-  const headX = myHead.x;
-  const headY = myHead.y;
-
-  const foodMoves = food.map((foodItem) => {
-    const dx = foodItem.x - headX;
-    const dy = foodItem.y - headY;
-
-    if (Math.abs(dx) > Math.abs(dy)) {
-      return dx > 0 ? "right" : "left";
-    } else {
-      return dy > 0 ? "up" : "down";
-    }
+  // Send the response
+  return ({
+    move: move,
   });
-
-  const validFoodMoves = foodMoves.filter((move) => isMoveSafe[move]);
-  const nextMove = validFoodMoves.length > 0 ? validFoodMoves[0] : safeMoves[0];
-
-  console.log(`MOVE ${gameState.turn}: ${nextMove}`);
-  return { move: nextMove };
 }
 
 runServer({
